@@ -46,3 +46,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    # The HF streaming reader (datasets 4.x) leaves a native background thread
+    # that races with interpreter finalization: intermittent
+    # "Fatal Python error: PyGILState_Release" aborts or exit hangs, even after
+    # closing the iterator.  All artifacts are written by this point, so flush
+    # and skip finalization entirely.
+    import logging
+    import os
+
+    logging.shutdown()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)

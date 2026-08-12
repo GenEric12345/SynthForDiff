@@ -36,10 +36,22 @@ def get_gpt2_tokenizer():
 
 def iter_openwebtext(hf_name: str = "Skylion007/openwebtext") -> Iterator[str]:
     """Stream raw document texts from HF."""
+    import gc
+
     from datasets import load_dataset
     ds = load_dataset(hf_name, split="train", streaming=True)
-    for ex in ds:
-        yield ex["text"]
+    it = iter(ds)
+    try:
+        for ex in it:
+            yield ex["text"]
+    finally:
+        # Close the streaming machinery while the interpreter is still fully
+        # alive; letting shutdown-time GC finalize it deadlocks or aborts
+        # (PyGILState_Release) in the fsspec/pyarrow background threads.
+        if hasattr(it, "close"):
+            it.close()
+        del it, ds
+        gc.collect()
 
 
 def build_records(
@@ -86,17 +98,22 @@ def build_records(
                 return True
         return False
 
-    for text in text_iter:
-        batch.append(text)
-        if len(batch) >= tokenize_batch:
-            done = flush(batch)
-            batch = []
-            if done:
-                break
-            if n_scanned % 51200 == 0:
-                log.info("scanned %d docs, kept %d/%d", n_scanned, len(records), n_docs)
-    else:
-        flush(batch)
+    try:
+        for text in text_iter:
+            batch.append(text)
+            if len(batch) >= tokenize_batch:
+                done = flush(batch)
+                batch = []
+                if done:
+                    break
+                if n_scanned % 51200 == 0:
+                    log.info("scanned %d docs, kept %d/%d", n_scanned, len(records), n_docs)
+        else:
+            flush(batch)
+    finally:
+        close = getattr(text_iter, "close", None)
+        if close is not None:
+            close()
 
     if len(records) < n_docs:
         raise RuntimeError(
