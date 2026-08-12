@@ -40,6 +40,16 @@ pytest tests/                                  # ~1 min, CPU only
 
 ## Runbook (defaults: 30k/5k/5k docs, 1×A100 80GB)
 
+One-command launchers (both log to `results/logs/` and fail fast):
+
+```bash
+./run_smoke_test.sh                   # pytest + all 6 steps with --smoke-test (< ~15 min)
+./run_full_pipeline.sh                # full experiment; restartable after interruption
+RUN_FIXED_T=1 ./run_full_pipeline.sh  # also trains the t=0.5 / t=0.9 control classifiers
+```
+
+Or step by step:
+
 ```bash
 # 1) Build the paired dataset from OpenWebText (streaming).       ~30-60 min (CPU-bound)
 python scripts/build_dataset.py
