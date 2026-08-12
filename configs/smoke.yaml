@@ -1,0 +1,28 @@
+# Layered on top of default.yaml by --smoke-test on any script.
+# Target: full pipeline end-to-end in < ~15 min on one GPU (~500 docs,
+# a few hundred training steps). Science lengths (128/960) are unchanged.
+
+data:
+  n_train: 400
+  n_val: 50
+  n_test: 50
+
+generation:
+  batch_size: 256
+
+train:
+  epochs: 2              # 400 docs / 4 per batch = 100 steps/epoch -> 200 steps
+  docs_per_batch: 4
+  grad_accum: 1          # effective batch 8 — fine for a mechanics check;
+                         # the >=64 requirement applies to real runs (default.yaml)
+  warmup_steps: 20
+  ckpt_every: 100
+  val_every: 50
+  val_max_docs: 50
+  log_every: 10
+
+eval:
+  n_boot: 200
+
+controls:
+  n_perm: 50

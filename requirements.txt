@@ -1,0 +1,28 @@
+# Core (all platforms)
+torch>=2.3
+# <5 required: the mdlm-owt remote code predates the transformers-5 loading
+# refactor (never calls post_init). If your vLLM build demands transformers>=5,
+# run generate_synthetic.py from a separate venv — it never imports mdlm code.
+transformers>=4.49,<5
+datasets>=2.20
+scikit-learn>=1.4
+scipy>=1.11
+matplotlib>=3.8
+pyarrow>=15
+pandas>=2.1
+pyyaml>=6
+einops>=0.7          # required by the mdlm-owt remote code
+pytest>=8
+huggingface_hub>=0.23
+
+# Generation backend (Linux GPU box; not installable on Windows/CPU —
+# use --set generation.backend=hf there for dev/smoke)
+vllm>=0.6; platform_system == "Linux"
+
+# Strongly recommended on the GPU box: the mdlm-owt remote code uses
+# flash-attn's fused kernels when available (src/flash_attn_shim.py is the
+# pure-torch fallback used automatically when it is not installed).
+# pip install flash-attn --no-build-isolation
+
+# Optional
+wandb

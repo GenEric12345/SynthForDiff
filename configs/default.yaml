@@ -1,0 +1,77 @@
+# Single source of truth for all scripts. Override via --set key.sub=value,
+# or layer another YAML with --config. --smoke-test layers configs/smoke.yaml.
+
+seed: 1234
+
+paths:
+  dataset: data/dataset.parquet
+  synthetic_dir: data/synthetic
+  checkpoints: checkpoints
+  results: results
+
+data:
+  hf_dataset: Skylion007/openwebtext
+  n_train: 30000
+  n_val: 5000
+  n_test: 5000
+  prompt_len: 128        # prompt = first 128 GPT-2 tokens
+  cont_len: 960          # continuation = next 960 GPT-2 tokens (both classes)
+  dedup_prefix: 256      # dedup on hash of first 256 tokens
+  tokenize_batch: 512
+
+generation:
+  backend: vllm          # vllm (default) | hf (dev fallback, e.g. no-vLLM machines)
+  model: Qwen/Qwen2.5-7B # BASE model on purpose — do not switch to Instruct
+  temperature: 1.0
+  top_p: 1.0
+  max_tokens: 1500       # generator tokens; must retokenize to >= cont_len GPT-2 tokens
+  max_attempts: 4        # reseeded retries for too-short generations
+  retry_len_factor: 1.5  # max_tokens multiplier per retry
+  batch_size: 1024       # prompts submitted to the engine per chunk (also shard size)
+  gpu_memory_utilization: 0.90
+  hf_micro_batch: 8      # hf backend only
+
+model:
+  backbone: kuleshov-group/mdlm-owt   # do NOT substitute silently (see spec)
+  pool: all              # 'all' = mean-pool every position; 'nonmask' = ablation
+
+train:
+  t_min: 0.05
+  t_max: 0.95
+  fixed_t: null          # e.g. 0.5 trains a dedicated single-t classifier (control)
+  epochs: 1
+  docs_per_batch: 16     # each doc contributes real+synth => 32 examples/step, 50/50
+  grad_accum: 2          # effective batch = 64 examples
+  lr_backbone: 2.0e-5
+  lr_head: 1.0e-3
+  weight_decay: 0.01
+  warmup_steps: 100
+  bf16: true
+  ckpt_every: 500        # optimizer steps
+  val_every: 500         # optimizer steps; logs val AUC binned by t (width 0.1)
+  val_max_docs: 2000     # subsample of val used for in-training binned AUC
+  val_passes: 1
+  log_every: 50
+  num_workers: 0
+  resume: null           # 'auto' or a checkpoint path
+  run_name: null         # default: uniform_t or fixed_t<val> (+ _nonmask)
+  wandb: false
+  wandb_project: synthfordiff
+
+eval:
+  t_grid: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+  n_masks: 8             # K independent mask realizations averaged per document
+  batch_size: 32
+  n_boot: 1000           # bootstrap resamples over documents
+  threshold: 0.55        # dashed line on the figure
+
+controls:
+  n_perm: 200            # label permutations per t
+  unigram_C: 1.0
+  unigram_max_train_docs: null   # subsample cap for the logistic regression fit
+  unigram_n_masks: 8     # test-time realizations averaged (mirrors main eval)
+
+annotate:
+  eps: 0.05              # tau = 0.5 - eps unless tau is set explicitly
+  tau: null
+  splits: [train, val, test]

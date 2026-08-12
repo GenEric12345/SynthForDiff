@@ -1,0 +1,44 @@
+# DEV ONLY — not part of the experiment. Shrinks sequence lengths and counts
+# so the pipeline mechanics (with the REAL mdlm-owt backbone via the flash-attn
+# shim) can be verified end-to-end on a CPU-only laptop:
+#   python scripts/<step>.py --config configs/local_cpu.yaml
+# Uses gpt2 (a base model) via the hf generation backend since vLLM/Qwen-7B
+# need a Linux GPU box. Results are mechanically valid but scientifically
+# meaningless at these sizes.
+
+data:
+  n_train: 24
+  n_val: 8
+  n_test: 8
+  prompt_len: 32
+  cont_len: 64
+
+generation:
+  backend: hf
+  model: gpt2
+  max_tokens: 110
+  batch_size: 64
+  hf_micro_batch: 4
+
+train:
+  epochs: 2
+  docs_per_batch: 2
+  grad_accum: 2
+  warmup_steps: 4
+  bf16: false
+  ckpt_every: 6
+  val_every: 6
+  val_max_docs: 8
+  log_every: 2
+
+eval:
+  n_masks: 4
+  batch_size: 8
+  n_boot: 100
+
+controls:
+  n_perm: 50
+  unigram_n_masks: 4
+
+annotate:
+  splits: [test]
